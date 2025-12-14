@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ArtFrame - Aesthetic Wallpaper Generator</title>
+    <title>ArtFrame-一键将照片转化为艺术馆级的高质感壁纸</title>
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
@@ -56,43 +56,25 @@
             font-weight: 500;
             letter-spacing: 0.5px;
         }
-        /* 新增：双输入框布局 */
-        .input-row {
-            display: flex;
-            gap: 10px;
-        }
+        
+        /* 输入框布局 */
+        .input-row { display: flex; gap: 10px; }
         .input-row input {
-            background: #333;
-            border: 1px solid #444;
-            color: #fff;
-            padding: 10px;
-            border-radius: 8px;
-            width: 100%;
-            text-align: center;
-            font-size: 14px;
+            background: #333; border: 1px solid #444; color: #fff;
+            padding: 10px; border-radius: 8px; width: 100%;
+            text-align: center; font-size: 14px;
         }
         .input-row input:focus { outline: none; border-color: #4285f4; }
         
         input[type="range"] {
-            width: 100%;
-            accent-color: #4285f4;
-            cursor: pointer;
-            height: 4px;
-            background: #444;
-            border-radius: 2px;
-            outline: none;
+            width: 100%; accent-color: #4285f4; cursor: pointer;
+            height: 4px; background: #444; border-radius: 2px; outline: none;
         }
         
         .file-upload-label {
-            display: block;
-            background: #333;
-            color: #ddd;
-            text-align: center;
-            padding: 14px;
-            border-radius: 12px;
-            cursor: pointer;
-            border: 2px dashed #555;
-            transition: all 0.3s;
+            display: block; background: #333; color: #ddd;
+            text-align: center; padding: 14px; border-radius: 12px;
+            cursor: pointer; border: 2px dashed #555; transition: all 0.3s;
             font-size: 14px;
         }
         .file-upload-label:hover { background: #3c3c3c; border-color: #777; }
@@ -101,53 +83,44 @@
         #preview-container {
             position: relative;
             box-shadow: 0 20px 60px rgba(0,0,0,0.5); 
-            border-radius: 18px;
-            overflow: hidden;
-            font-size: 0;
-            /* 限制高度，让它能完整显示在屏幕里 */
-            max-height: 80vh; 
-            background: #000;
-            /* 保持宽高比，初始默认 */
+            border-radius: 18px; overflow: hidden; font-size: 0;
+            max-height: 80vh; background: #000;
             aspect-ratio: 9 / 16; 
         }
-        canvas {
-            height: 100%; 
-            width: auto;
-            display: block;
-            margin: 0 auto;
-        }
+        canvas { height: 100%; width: auto; display: block; margin: 0 auto; }
         
-        button.btn-primary {
-            background: #4285f4;
-            color: white;
-            border: none;
-            padding: 14px;
-            width: 100%;
-            border-radius: 12px;
-            font-size: 15px;
-            font-weight: 500;
-            cursor: pointer;
-            transition: transform 0.1s, opacity 0.2s;
-            margin-top: 10px;
+        /* 按钮组样式 */
+        .btn-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
         }
-        button.btn-primary:hover { background: #3367d6; }
+        button {
+            border: none; padding: 14px; border-radius: 12px;
+            font-size: 15px; font-weight: 500; cursor: pointer;
+            transition: transform 0.1s, opacity 0.2s; flex: 1;
+        }
+        button:active { transform: scale(0.98); }
+        
+        /* 主按钮 (蓝色) */
+        .btn-primary { background: #4285f4; color: white; }
+        .btn-primary:hover { background: #3367d6; }
+        
+        /* 次按钮 (深灰) */
+        .btn-secondary { background: #3a3a3a; color: #eee; border: 1px solid #555; }
+        .btn-secondary:hover { background: #444; border-color: #777; }
         
         .detect-btn {
-            background: transparent;
-            border: 1px solid #555;
-            color: #aaa;
-            padding: 5px 10px;
-            border-radius: 6px;
-            font-size: 12px;
-            cursor: pointer;
-            margin-top: 5px;
+            background: transparent; border: 1px solid #555; color: #aaa;
+            padding: 5px 10px; border-radius: 6px; font-size: 12px;
+            cursor: pointer; margin-top: 5px;
         }
         .detect-btn:hover { background: #444; color: #fff; }
     </style>
 </head>
 <body>
 
-    <h2>🎨 ArtFrame - Aesthetic Wallpaper Generator</h2>
+    <h2>🎨 ArtFrame-一键将照片转化为艺术馆级的高质感壁纸</h2>
 
     <div class="main-layout">
         <div class="controls-wrapper">
@@ -198,7 +171,10 @@
                     <input type="range" id="radiusRange" min="0" max="160" step="5" value="50">
                 </div>
 
-                <button class="btn-primary" onclick="downloadImage()">保存壁纸</button>
+                <div class="btn-group">
+                    <button class="btn-primary" onclick="downloadImage('full')">保存完整壁纸</button>
+                    <button class="btn-secondary" onclick="downloadImage('bg')">只保存背景</button>
+                </div>
             </div>
         </div>
 
@@ -234,39 +210,24 @@
         let originalImage = new Image();
         let isImageLoaded = false;
 
-        // --- 核心功能：自动检测物理分辨率 ---
         function detectResolution() {
-            // 获取像素比 (Retina屏通常是2或3)
             const dpr = window.devicePixelRatio || 1;
-            // 获取物理分辨率
             let screenW = Math.round(window.screen.width * dpr);
             let screenH = Math.round(window.screen.height * dpr);
+            if (screenW > screenH) [screenW, screenH] = [screenH, screenW];
 
-            // 纠正逻辑：如果是手机且横屏状态，强制交换宽高，确保生成竖屏壁纸
-            if (screenW > screenH) {
-                // 判断是否是移动设备环境（粗略判断，或者直接假定用户想要做竖屏壁纸）
-                // 这里我们直接交换，假设用户生成壁纸都是为了竖屏用
-                [screenW, screenH] = [screenH, screenW];
-            }
-
-            // 更新输入框
             inputs.width.value = screenW;
             inputs.height.value = screenH;
             
-            // 立即刷新画布
             updateCanvasSize();
             if (isImageLoaded) render();
             else drawPlaceholder();
             
-            // 给按钮一点反馈
             const btn = document.querySelector('.detect-btn');
             const originalText = btn.innerText;
-            btn.innerText = `✅ 已应用 ${screenW}x${screenH}`;
+            btn.innerText = `✅ ${screenW}x${screenH}`;
             setTimeout(() => btn.innerText = originalText, 2000);
         }
-
-        // 初始化时尝试运行一次检测（可选，也可以让用户默认用2K）
-        // 如果想默认就自适应，解开下面这行的注释：
         detectResolution();
 
         function updateCanvasSize() {
@@ -274,8 +235,6 @@
             const h = parseInt(inputs.height.value) || 1920;
             canvas.width = w;
             canvas.height = h;
-            
-            // 动态更新预览容器的宽高比，防止预览图变形
             previewContainer.style.aspectRatio = `${w} / ${h}`;
         }
 
@@ -284,26 +243,21 @@
             ctx.fillStyle = "#202124"; 
             ctx.fillRect(0, 0, canvas.width, canvas.height);
             ctx.fillStyle = "#5f6368";
-            // 字体大小随分辨率自适应
             const fontSize = Math.floor(canvas.width / 20); 
             ctx.font = `bold ${fontSize}px Google Sans, sans-serif`;
             ctx.textAlign = "center";
             ctx.textBaseline = "middle";
-            ctx.fillText(`当前尺寸: ${canvas.width} x ${canvas.height}`, canvas.width/2, canvas.height/2);
+            ctx.fillText(`预览模式`, canvas.width/2, canvas.height/2);
             ctx.font = `${fontSize * 0.7}px sans-serif`;
             ctx.fillText("请上传图片", canvas.width/2, canvas.height/2 + fontSize * 1.5);
         }
-        // 初始运行
         drawPlaceholder();
 
-        // 监听所有输入
         Object.values(inputs).forEach(input => {
             if(input !== inputs.upload) {
                 input.addEventListener('input', () => {
                     updateLabels();
-                    if (input === inputs.width || input === inputs.height) {
-                        updateCanvasSize();
-                    }
+                    if (input === inputs.width || input === inputs.height) updateCanvasSize();
                     if (isImageLoaded) render();
                     else drawPlaceholder();
                 });
@@ -351,7 +305,8 @@
             ctx.closePath();
         }
 
-        function render() {
+        // --- 核心修改：增加 onlyBackground 参数 ---
+        function render(onlyBackground = false) {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             
             // 1. 背景层
@@ -364,13 +319,11 @@
             
             const brightness = inputs.bri.value / 100;
             ctx.filter = `blur(${inputs.blur.value}px) brightness(${brightness}) saturate(1.2)`; 
-            
-            // 动态计算出血量，防止分辨率过大时出现白边
             const bgBleed = Math.max(canvas.width, canvas.height) * 0.1; 
             ctx.drawImage(originalImage, xBg - bgBleed, yBg - bgBleed, wBg + bgBleed*2, hBg + bgBleed*2);
             ctx.restore();
 
-            // 氛围暗角
+            // 氛围暗角 (背景的一部分)
             const vignette = ctx.createRadialGradient(
                 canvas.width / 2, canvas.height / 2, canvas.width * 0.3, 
                 canvas.width / 2, canvas.height / 2, canvas.height * 0.9 
@@ -380,8 +333,12 @@
             ctx.fillStyle = vignette;
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
+            // --- 如果是“只下载背景”模式，到这里就结束了 ---
+            if (onlyBackground) {
+                return;
+            }
+
             // 2. 前景计算
-            // 边距动态化：大概是宽度的 8%
             const padding = canvas.width * 0.08; 
             const safeW = canvas.width - (padding * 2);
             const safeH = canvas.height - (padding * 2);
@@ -397,7 +354,6 @@
             ctx.save();
             drawRoundedRectPath(ctx, xFg, yFg, wFg, hFg, cornerRadius);
             ctx.shadowColor = "rgba(0, 0, 0, 0.5)"; 
-            // 阴影大小也随分辨率自适应
             ctx.shadowBlur = canvas.height * 0.04; 
             ctx.shadowOffsetY = canvas.height * 0.02; 
             ctx.fillStyle = "black"; 
@@ -415,11 +371,10 @@
             // 5. 描边
             ctx.save();
             drawRoundedRectPath(ctx, xFg, yFg, wFg, hFg, cornerRadius);
-            ctx.lineWidth = Math.max(2, canvas.width * 0.002); // 动态线宽
+            ctx.lineWidth = Math.max(2, canvas.width * 0.002); 
             ctx.strokeStyle = "rgba(255, 255, 255, 0.3)"; 
             ctx.stroke();
             
-            // 内描边
             ctx.clip();
             ctx.lineWidth = Math.max(4, canvas.width * 0.004);
             ctx.strokeStyle = "rgba(0,0,0,0.05)";
@@ -427,21 +382,46 @@
             ctx.restore();
         }
 
-        function downloadImage() {
+        // --- 核心修改：支持不同下载模式 ---
+        function downloadImage(type) {
             if (!isImageLoaded) {
                 alert("请先选择图片"); return;
             }
-            const btn = document.querySelector('.btn-primary');
+            
+            const isBgOnly = (type === 'bg');
+            const btn = isBgOnly ? document.querySelector('.btn-secondary') : document.querySelector('.btn-primary');
+            const originalText = btn.innerHTML;
+            
             btn.innerText = "处理中...";
+            
+            // 使用 setTimeout 确保 UI 刷新
             setTimeout(() => {
+                 // 1. 如果需要背景，强制重绘一次只有背景的图
+                 if (isBgOnly) {
+                     render(true);
+                 } else {
+                     // 确保是完整的（防止上次状态残留）
+                     render(false);
+                 }
+
+                 // 2. 执行下载
                  const link = document.createElement('a');
                  const timestamp = new Date().getTime();
                  const w = inputs.width.value;
                  const h = inputs.height.value;
-                 link.download = `Wallpaper-${w}x${h}-${timestamp}.png`;
+                 // 文件名区分
+                 const suffix = isBgOnly ? 'Background' : 'Wallpaper';
+                 
+                 link.download = `${suffix}-${w}x${h}-${timestamp}.png`;
                  link.href = canvas.toDataURL('image/png', 1.0);
                  link.click();
-                 btn.innerText = "保存壁纸";
+
+                 // 3. 恢复预览 (如果是背景模式，下载完要画回完整的给用户看)
+                 if (isBgOnly) {
+                     render(false);
+                 }
+
+                 btn.innerHTML = originalText;
             }, 50);
         }
     </script>
