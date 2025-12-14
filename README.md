@@ -1,10 +1,9 @@
-# 🎨 ArtFrame - Aesthetic Wallpaper Generator
+# 🎨 MuseWall - Aesthetic Wallpaper Generator
 
 > Turn your photos into museum-quality wallpapers with a single click.
 > 一键将照片转化为艺术馆级的高质感壁纸。
 
 ![Project Preview](./preview.png)
-*(建议这里放一张你生成好的壁纸截图作为预览)*
 
 ## ✨ Introduction (简介)
 
@@ -38,7 +37,7 @@
 
 | Original (原图) | Generated Wallpaper (生成效果) |
 | :---: | :---: |
-| *(放原图缩略图)* | *(放生成后的缩略图)* |
+| ![Project Preview](./preview.png) | ![Project Preview](./preview.png) |
 
 ## 🤝 Contributing (贡献)
 
