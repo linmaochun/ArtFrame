@@ -13,8 +13,8 @@
 
 ## 🚀 Features (功能特点)
 
-* **🖼️ 2K Resolution**: Export in QHD (1440x2560) for modern flagship screens.
-    * 支持导出 2K 超清分辨率，适配主流旗舰手机。
+* **🖼️ Automatically obtains the device's physical resolution**: allowing the wallpaper to perfectly adapt to your phone.
+    * 自动获取设备物理分辨率，让壁纸完美适应你的手机。
 * **💧 Homologous Tones**: Smart background brightness and saturation adjustment to match the foreground.
     * 同源色调渲染，背景亮度与饱和度智能匹配，拒绝“死黑”背景。
 * **🔮 Glassmorphism**: Adjustable Gaussian blur and delicate rim lights (borders).
@@ -25,7 +25,6 @@
     * 零依赖，纯原生代码实现，下载即用。
 
 ## 🛠️ Usage (使用方法)
-
 1.  Clone this repository or download the `index.html` file.
     * 克隆仓库或直接下载 `index.html`。
 2.  Open `index.html` in any modern browser (Chrome, Edge, Safari).
