@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Google Art 风格壁纸生成器</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #1a1a1a;
+            color: #e0e0e0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 30px 20px;
+            margin: 0;
+        }
+        h2 {
+            margin-top: 0;
+            font-weight: 300;
+            letter-spacing: 0.5px;
+            text-align: center;
+            color: #fff;
+            opacity: 0.9;
+        }
+        .main-layout {
+            display: flex;
+            gap: 40px;
+            align-items: flex-start;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        .controls-wrapper {
+            flex: 1;
+            min-width: 320px;
+            max-width: 400px;
+        }
+        .controls {
+            background: #252525;
+            padding: 25px;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            border: 1px solid #333;
+        }
+        .control-group {
+            margin-bottom: 20px;
+            display: flex;
+            flex-direction: column;
+        }
+        .control-group label {
+            font-size: 13px;
+            margin-bottom: 8px;
+            color: #ccc;
+            display: flex;
+            justify-content: space-between;
+            font-weight: 500;
+            letter-spacing: 0.5px;
+        }
+        input[type="range"] {
+            width: 100%;
+            accent-color: #4285f4; /* Google Blue */
+            cursor: pointer;
+            height: 4px;
+            background: #444;
+            border-radius: 2px;
+            outline: none;
+        }
+        
+        .file-upload-label {
+            display: block;
+            background: #333;
+            color: #ddd;
+            text-align: center;
+            padding: 14px;
+            border-radius: 12px;
+            cursor: pointer;
+            border: 2px dashed #555;
+            transition: all 0.3s;
+            font-size: 14px;
+        }
+        .file-upload-label:hover { background: #3c3c3c; border-color: #777; }
+        .file-upload input[type="file"] { display: none; }
+
+        /* 预览区域容器 */
+        #preview-container {
+            position: relative;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.5); 
+            border-radius: 18px;
+            overflow: hidden;
+            font-size: 0;
+            max-height: 80vh;
+            aspect-ratio: 9 / 16;
+            background: #000;
+        }
+        canvas {
+            height: 100%; 
+            width: auto;
+            display: block;
+        }
+        
+        button.btn-primary {
+            background: #4285f4;
+            color: white;
+            border: none;
+            padding: 14px;
+            width: 100%;
+            border-radius: 12px;
+            font-size: 15px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: transform 0.1s, opacity 0.2s;
+            margin-top: 10px;
+        }
+        button.btn-primary:hover { background: #3367d6; }
+        button.btn-primary:active { transform: scale(0.98); }
+    </style>
+</head>
+<body>
+
+    <h2>🎨 Google Art 风格生成器</h2>
+
+    <div class="main-layout">
+        <div class="controls-wrapper">
+            <div class="controls">
+                <div class="control-group">
+                    <div class="file-upload">
+                        <label for="uploadInput" class="file-upload-label">
+                            选择图片
+                        </label>
+                        <input type="file" id="uploadInput" accept="image/*">
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label>背景模糊 (Blur): <span id="blurVal">60</span></label>
+                    <input type="range" id="blurRange" min="0" max="150" value="60">
+                </div>
+                
+                <div class="control-group">
+                    <label>背景亮度 (Brightness): <span id="briVal">90</span>%</label>
+                    <input type="range" id="briRange" min="20" max="120" value="90">
+                </div>
+
+                <div class="control-group">
+                    <label>图片缩放 (Scale): <span id="scaleVal">82</span>%</label>
+                    <input type="range" id="scaleRange" min="30" max="95" value="82">
+                </div>
+
+                <div class="control-group">
+                    <label>垂直位置 (Position): <span id="posVal">42</span>%</label>
+                    <input type="range" id="posRange" min="20" max="80" value="42">
+                </div>
+                
+                <div class="control-group">
+                    <label>圆角大小 (Radius): <span id="radiusVal">50</span>px</label>
+                    <input type="range" id="radiusRange" min="0" max="160" step="5" value="50">
+                </div>
+
+                <button class="btn-primary" onclick="downloadImage()">保存壁纸 (2K)</button>
+            </div>
+        </div>
+
+        <div id="preview-container">
+            <canvas id="canvas" width="1440" height="2560"></canvas>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        
+        const inputs = {
+            upload: document.getElementById('uploadInput'),
+            blur: document.getElementById('blurRange'),
+            bri: document.getElementById('briRange'), // 新增亮度
+            scale: document.getElementById('scaleRange'),
+            pos: document.getElementById('posRange'),
+            radius: document.getElementById('radiusRange')
+        };
+        
+        const displays = {
+            blur: document.getElementById('blurVal'),
+            bri: document.getElementById('briVal'), // 新增亮度
+            scale: document.getElementById('scaleVal'),
+            pos: document.getElementById('posVal'),
+            radius: document.getElementById('radiusVal')
+        };
+
+        let originalImage = new Image();
+        let isImageLoaded = false;
+
+        function drawPlaceholder() {
+            // 默认背景改成更中性的灰色
+            ctx.fillStyle = "#202124"; 
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            ctx.fillStyle = "#5f6368";
+            ctx.font = "bold 60px Google Sans, Roboto, sans-serif";
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            ctx.fillText("Google Arts 风格", canvas.width/2, canvas.height/2);
+        }
+        drawPlaceholder();
+
+        // 批量绑定事件
+        Object.values(inputs).forEach(input => {
+            if(input !== inputs.upload) {
+                input.addEventListener('input', updateLabelsAndRender);
+            }
+        });
+
+        inputs.upload.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            document.querySelector('.file-upload-label').innerText = "已加载: " + file.name;
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                originalImage.onload = function() {
+                    isImageLoaded = true;
+                    render();
+                }
+                originalImage.src = event.target.result;
+            }
+            reader.readAsDataURL(file);
+        });
+
+        function updateLabelsAndRender() {
+            displays.blur.innerText = inputs.blur.value;
+            displays.bri.innerText = inputs.bri.value;
+            displays.scale.innerText = inputs.scale.value;
+            displays.pos.innerText = inputs.pos.value;
+            displays.radius.innerText = inputs.radius.value;
+            if (isImageLoaded) render();
+        }
+
+        function drawRoundedRectPath(ctx, x, y, width, height, radius) {
+            ctx.beginPath();
+            if (ctx.roundRect) {
+                ctx.roundRect(x, y, width, height, radius);
+            } else {
+                ctx.moveTo(x + radius, y);
+                ctx.lineTo(x + width - radius, y);
+                ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+                ctx.lineTo(x + width, y + height - radius);
+                ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+                ctx.lineTo(x + radius, y + height);
+                ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+                ctx.lineTo(x, y + radius);
+                ctx.quadraticCurveTo(x, y, x + radius, y);
+            }
+            ctx.closePath();
+        }
+
+        function render() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // ==========================================
+            // 1. 背景层 (Background) - 追求通透感
+            // ==========================================
+            ctx.save();
+            const scaleBg = Math.max(canvas.width / originalImage.width, canvas.height / originalImage.height);
+            const wBg = originalImage.width * scaleBg;
+            const hBg = originalImage.height * scaleBg;
+            const xBg = (canvas.width - wBg) / 2;
+            const yBg = (canvas.height - hBg) / 2;
+            
+            // 核心调整：
+            // 1. Brightness 由滑块控制，默认 90%，非常接近原图亮度。
+            // 2. Saturate 1.2：稍微增加一点饱和度，因为模糊会显得颜色淡，这能把颜色补回来。
+            const brightness = inputs.bri.value / 100;
+            ctx.filter = `blur(${inputs.blur.value}px) brightness(${brightness}) saturate(1.2)`; 
+            
+            const bgBleed = 150; 
+            ctx.drawImage(originalImage, xBg - bgBleed, yBg - bgBleed, wBg + bgBleed*2, hBg + bgBleed*2);
+            ctx.restore();
+
+            // 核心调整：极淡的暗角 (Vignette)
+            // 只有 15% 的透明度，不再是一坨黑，而是微微的深邃感
+            const vignette = ctx.createRadialGradient(
+                canvas.width / 2, canvas.height / 2, canvas.width * 0.3, 
+                canvas.width / 2, canvas.height / 2, canvas.height * 0.9 
+            );
+            vignette.addColorStop(0, 'rgba(0,0,0,0)'); 
+            vignette.addColorStop(1, 'rgba(0,0,0,0.15)'); // 之前是 0.5
+            ctx.fillStyle = vignette;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+
+            // ==========================================
+            // 2. 几何计算
+            // ==========================================
+            const padding = 80;
+            const safeW = canvas.width - (padding * 2);
+            const safeH = canvas.height - (padding * 2);
+            let baseScale = Math.min(safeW / originalImage.width, safeH / originalImage.height);
+            const finalScale = baseScale * (inputs.scale.value / 100);
+            const wFg = originalImage.width * finalScale;
+            const hFg = originalImage.height * finalScale;
+            const xFg = (canvas.width - wFg) / 2;
+            const yFg = (canvas.height * (inputs.pos.value / 100)) - (hFg / 2);
+            const cornerRadius = parseInt(inputs.radius.value);
+
+
+            // ==========================================
+            // 3. 阴影层 (Shadow)
+            // ==========================================
+            ctx.save();
+            drawRoundedRectPath(ctx, xFg, yFg, wFg, hFg, cornerRadius);
+            // 阴影稍微降低一点透明度，让它看起来不脏
+            ctx.shadowColor = "rgba(0, 0, 0, 0.5)"; 
+            ctx.shadowBlur = 80; 
+            ctx.shadowOffsetY = 40; 
+            ctx.fillStyle = "black"; 
+            ctx.fill();
+            ctx.restore();
+
+
+            // ==========================================
+            // 4. 前景图片 (Foreground)
+            // ==========================================
+            ctx.save();
+            drawRoundedRectPath(ctx, xFg, yFg, wFg, hFg, cornerRadius);
+            ctx.clip();
+            // 移除额外的前景提亮，保持原汁原味，与高亮背景更协调
+            ctx.filter = "none"; 
+            ctx.drawImage(originalImage, xFg, yFg, wFg, hFg);
+            ctx.restore();
+
+
+            // ==========================================
+            // 5. 玻璃光边 (Rim Light) - 优化混合模式
+            // ==========================================
+            ctx.save();
+            drawRoundedRectPath(ctx, xFg, yFg, wFg, hFg, cornerRadius);
+            ctx.lineWidth = 2; 
+            
+            // 使用叠加模式，让边框更自然
+            ctx.strokeStyle = "rgba(255, 255, 255, 0.3)"; 
+            // 如果浏览器支持，可以用 overlay，如果不支也不影响
+            // ctx.globalCompositeOperation = 'overlay'; 
+            
+            ctx.stroke();
+            
+            // 再画一圈极细的内阴影，增加厚度感（可选）
+            ctx.clip();
+            ctx.lineWidth = 4;
+            ctx.strokeStyle = "rgba(0,0,0,0.05)";
+            ctx.stroke();
+            
+            ctx.restore();
+        }
+
+        function downloadImage() {
+            if (!isImageLoaded) {
+                alert("请先选择图片"); return;
+            }
+            const btn = document.querySelector('.btn-primary');
+            btn.innerText = "处理中...";
+            setTimeout(() => {
+                 const link = document.createElement('a');
+                 const timestamp = new Date().getTime();
+                 link.download = `GoogleArt-Wallpaper-${timestamp}.png`;
+                 link.href = canvas.toDataURL('image/png', 1.0);
+                 link.click();
+                 btn.innerText = "保存壁纸 (2K)";
+            }, 50);
+        }
+    </script>
+</body>
+</html>
