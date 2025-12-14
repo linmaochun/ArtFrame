@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Google Art 风格壁纸生成器</title>
+    <title>ArtFrame - Aesthetic Wallpaper Generator</title>
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
@@ -56,9 +56,26 @@
             font-weight: 500;
             letter-spacing: 0.5px;
         }
+        /* 新增：双输入框布局 */
+        .input-row {
+            display: flex;
+            gap: 10px;
+        }
+        .input-row input {
+            background: #333;
+            border: 1px solid #444;
+            color: #fff;
+            padding: 10px;
+            border-radius: 8px;
+            width: 100%;
+            text-align: center;
+            font-size: 14px;
+        }
+        .input-row input:focus { outline: none; border-color: #4285f4; }
+        
         input[type="range"] {
             width: 100%;
-            accent-color: #4285f4; /* Google Blue */
+            accent-color: #4285f4;
             cursor: pointer;
             height: 4px;
             background: #444;
@@ -81,21 +98,23 @@
         .file-upload-label:hover { background: #3c3c3c; border-color: #777; }
         .file-upload input[type="file"] { display: none; }
 
-        /* 预览区域容器 */
         #preview-container {
             position: relative;
             box-shadow: 0 20px 60px rgba(0,0,0,0.5); 
             border-radius: 18px;
             overflow: hidden;
             font-size: 0;
-            max-height: 80vh;
-            aspect-ratio: 9 / 16;
+            /* 限制高度，让它能完整显示在屏幕里 */
+            max-height: 80vh; 
             background: #000;
+            /* 保持宽高比，初始默认 */
+            aspect-ratio: 9 / 16; 
         }
         canvas {
             height: 100%; 
             width: auto;
             display: block;
+            margin: 0 auto;
         }
         
         button.btn-primary {
@@ -112,12 +131,23 @@
             margin-top: 10px;
         }
         button.btn-primary:hover { background: #3367d6; }
-        button.btn-primary:active { transform: scale(0.98); }
+        
+        .detect-btn {
+            background: transparent;
+            border: 1px solid #555;
+            color: #aaa;
+            padding: 5px 10px;
+            border-radius: 6px;
+            font-size: 12px;
+            cursor: pointer;
+            margin-top: 5px;
+        }
+        .detect-btn:hover { background: #444; color: #fff; }
     </style>
 </head>
 <body>
 
-    <h2>🎨 Google Art 风格生成器</h2>
+    <h2>🎨 ArtFrame - Aesthetic Wallpaper Generator</h2>
 
     <div class="main-layout">
         <div class="controls-wrapper">
@@ -125,9 +155,21 @@
                 <div class="control-group">
                     <div class="file-upload">
                         <label for="uploadInput" class="file-upload-label">
-                            选择图片
+                            📁 选择图片
                         </label>
                         <input type="file" id="uploadInput" accept="image/*">
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label>
+                        画布尺寸 (宽 x 高)
+                        <button class="detect-btn" onclick="detectResolution()">📍 获取本机尺寸</button>
+                    </label>
+                    <div class="input-row">
+                        <input type="number" id="inputWidth" value="1440">
+                        <span style="align-self:center; color:#555;">x</span>
+                        <input type="number" id="inputHeight" value="2560">
                     </div>
                 </div>
 
@@ -156,23 +198,26 @@
                     <input type="range" id="radiusRange" min="0" max="160" step="5" value="50">
                 </div>
 
-                <button class="btn-primary" onclick="downloadImage()">保存壁纸 (2K)</button>
+                <button class="btn-primary" onclick="downloadImage()">保存壁纸</button>
             </div>
         </div>
 
         <div id="preview-container">
-            <canvas id="canvas" width="1440" height="2560"></canvas>
+            <canvas id="canvas"></canvas>
         </div>
     </div>
 
     <script>
         const canvas = document.getElementById('canvas');
         const ctx = canvas.getContext('2d');
+        const previewContainer = document.getElementById('preview-container');
         
         const inputs = {
             upload: document.getElementById('uploadInput'),
+            width: document.getElementById('inputWidth'),
+            height: document.getElementById('inputHeight'),
             blur: document.getElementById('blurRange'),
-            bri: document.getElementById('briRange'), // 新增亮度
+            bri: document.getElementById('briRange'),
             scale: document.getElementById('scaleRange'),
             pos: document.getElementById('posRange'),
             radius: document.getElementById('radiusRange')
@@ -180,7 +225,7 @@
         
         const displays = {
             blur: document.getElementById('blurVal'),
-            bri: document.getElementById('briVal'), // 新增亮度
+            bri: document.getElementById('briVal'),
             scale: document.getElementById('scaleVal'),
             pos: document.getElementById('posVal'),
             radius: document.getElementById('radiusVal')
@@ -189,23 +234,79 @@
         let originalImage = new Image();
         let isImageLoaded = false;
 
+        // --- 核心功能：自动检测物理分辨率 ---
+        function detectResolution() {
+            // 获取像素比 (Retina屏通常是2或3)
+            const dpr = window.devicePixelRatio || 1;
+            // 获取物理分辨率
+            let screenW = Math.round(window.screen.width * dpr);
+            let screenH = Math.round(window.screen.height * dpr);
+
+            // 纠正逻辑：如果是手机且横屏状态，强制交换宽高，确保生成竖屏壁纸
+            if (screenW > screenH) {
+                // 判断是否是移动设备环境（粗略判断，或者直接假定用户想要做竖屏壁纸）
+                // 这里我们直接交换，假设用户生成壁纸都是为了竖屏用
+                [screenW, screenH] = [screenH, screenW];
+            }
+
+            // 更新输入框
+            inputs.width.value = screenW;
+            inputs.height.value = screenH;
+            
+            // 立即刷新画布
+            updateCanvasSize();
+            if (isImageLoaded) render();
+            else drawPlaceholder();
+            
+            // 给按钮一点反馈
+            const btn = document.querySelector('.detect-btn');
+            const originalText = btn.innerText;
+            btn.innerText = `✅ 已应用 ${screenW}x${screenH}`;
+            setTimeout(() => btn.innerText = originalText, 2000);
+        }
+
+        // 初始化时尝试运行一次检测（可选，也可以让用户默认用2K）
+        // 如果想默认就自适应，解开下面这行的注释：
+        detectResolution();
+
+        function updateCanvasSize() {
+            const w = parseInt(inputs.width.value) || 1080;
+            const h = parseInt(inputs.height.value) || 1920;
+            canvas.width = w;
+            canvas.height = h;
+            
+            // 动态更新预览容器的宽高比，防止预览图变形
+            previewContainer.style.aspectRatio = `${w} / ${h}`;
+        }
+
         function drawPlaceholder() {
-            // 默认背景改成更中性的灰色
+            updateCanvasSize();
             ctx.fillStyle = "#202124"; 
             ctx.fillRect(0, 0, canvas.width, canvas.height);
-            
             ctx.fillStyle = "#5f6368";
-            ctx.font = "bold 60px Google Sans, Roboto, sans-serif";
+            // 字体大小随分辨率自适应
+            const fontSize = Math.floor(canvas.width / 20); 
+            ctx.font = `bold ${fontSize}px Google Sans, sans-serif`;
             ctx.textAlign = "center";
             ctx.textBaseline = "middle";
-            ctx.fillText("Google Arts 风格", canvas.width/2, canvas.height/2);
+            ctx.fillText(`当前尺寸: ${canvas.width} x ${canvas.height}`, canvas.width/2, canvas.height/2);
+            ctx.font = `${fontSize * 0.7}px sans-serif`;
+            ctx.fillText("请上传图片", canvas.width/2, canvas.height/2 + fontSize * 1.5);
         }
+        // 初始运行
         drawPlaceholder();
 
-        // 批量绑定事件
+        // 监听所有输入
         Object.values(inputs).forEach(input => {
             if(input !== inputs.upload) {
-                input.addEventListener('input', updateLabelsAndRender);
+                input.addEventListener('input', () => {
+                    updateLabels();
+                    if (input === inputs.width || input === inputs.height) {
+                        updateCanvasSize();
+                    }
+                    if (isImageLoaded) render();
+                    else drawPlaceholder();
+                });
             }
         });
 
@@ -224,13 +325,12 @@
             reader.readAsDataURL(file);
         });
 
-        function updateLabelsAndRender() {
+        function updateLabels() {
             displays.blur.innerText = inputs.blur.value;
             displays.bri.innerText = inputs.bri.value;
             displays.scale.innerText = inputs.scale.value;
             displays.pos.innerText = inputs.pos.value;
             displays.radius.innerText = inputs.radius.value;
-            if (isImageLoaded) render();
         }
 
         function drawRoundedRectPath(ctx, x, y, width, height, radius) {
@@ -254,9 +354,7 @@
         function render() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             
-            // ==========================================
-            // 1. 背景层 (Background) - 追求通透感
-            // ==========================================
+            // 1. 背景层
             ctx.save();
             const scaleBg = Math.max(canvas.width / originalImage.width, canvas.height / originalImage.height);
             const wBg = originalImage.width * scaleBg;
@@ -264,32 +362,27 @@
             const xBg = (canvas.width - wBg) / 2;
             const yBg = (canvas.height - hBg) / 2;
             
-            // 核心调整：
-            // 1. Brightness 由滑块控制，默认 90%，非常接近原图亮度。
-            // 2. Saturate 1.2：稍微增加一点饱和度，因为模糊会显得颜色淡，这能把颜色补回来。
             const brightness = inputs.bri.value / 100;
             ctx.filter = `blur(${inputs.blur.value}px) brightness(${brightness}) saturate(1.2)`; 
             
-            const bgBleed = 150; 
+            // 动态计算出血量，防止分辨率过大时出现白边
+            const bgBleed = Math.max(canvas.width, canvas.height) * 0.1; 
             ctx.drawImage(originalImage, xBg - bgBleed, yBg - bgBleed, wBg + bgBleed*2, hBg + bgBleed*2);
             ctx.restore();
 
-            // 核心调整：极淡的暗角 (Vignette)
-            // 只有 15% 的透明度，不再是一坨黑，而是微微的深邃感
+            // 氛围暗角
             const vignette = ctx.createRadialGradient(
                 canvas.width / 2, canvas.height / 2, canvas.width * 0.3, 
                 canvas.width / 2, canvas.height / 2, canvas.height * 0.9 
             );
             vignette.addColorStop(0, 'rgba(0,0,0,0)'); 
-            vignette.addColorStop(1, 'rgba(0,0,0,0.15)'); // 之前是 0.5
+            vignette.addColorStop(1, 'rgba(0,0,0,0.15)');
             ctx.fillStyle = vignette;
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-
-            // ==========================================
-            // 2. 几何计算
-            // ==========================================
-            const padding = 80;
+            // 2. 前景计算
+            // 边距动态化：大概是宽度的 8%
+            const padding = canvas.width * 0.08; 
             const safeW = canvas.width - (padding * 2);
             const safeH = canvas.height - (padding * 2);
             let baseScale = Math.min(safeW / originalImage.width, safeH / originalImage.height);
@@ -300,53 +393,37 @@
             const yFg = (canvas.height * (inputs.pos.value / 100)) - (hFg / 2);
             const cornerRadius = parseInt(inputs.radius.value);
 
-
-            // ==========================================
-            // 3. 阴影层 (Shadow)
-            // ==========================================
+            // 3. 阴影
             ctx.save();
             drawRoundedRectPath(ctx, xFg, yFg, wFg, hFg, cornerRadius);
-            // 阴影稍微降低一点透明度，让它看起来不脏
             ctx.shadowColor = "rgba(0, 0, 0, 0.5)"; 
-            ctx.shadowBlur = 80; 
-            ctx.shadowOffsetY = 40; 
+            // 阴影大小也随分辨率自适应
+            ctx.shadowBlur = canvas.height * 0.04; 
+            ctx.shadowOffsetY = canvas.height * 0.02; 
             ctx.fillStyle = "black"; 
             ctx.fill();
             ctx.restore();
 
-
-            // ==========================================
-            // 4. 前景图片 (Foreground)
-            // ==========================================
+            // 4. 前景图
             ctx.save();
             drawRoundedRectPath(ctx, xFg, yFg, wFg, hFg, cornerRadius);
             ctx.clip();
-            // 移除额外的前景提亮，保持原汁原味，与高亮背景更协调
             ctx.filter = "none"; 
             ctx.drawImage(originalImage, xFg, yFg, wFg, hFg);
             ctx.restore();
 
-
-            // ==========================================
-            // 5. 玻璃光边 (Rim Light) - 优化混合模式
-            // ==========================================
+            // 5. 描边
             ctx.save();
             drawRoundedRectPath(ctx, xFg, yFg, wFg, hFg, cornerRadius);
-            ctx.lineWidth = 2; 
-            
-            // 使用叠加模式，让边框更自然
+            ctx.lineWidth = Math.max(2, canvas.width * 0.002); // 动态线宽
             ctx.strokeStyle = "rgba(255, 255, 255, 0.3)"; 
-            // 如果浏览器支持，可以用 overlay，如果不支也不影响
-            // ctx.globalCompositeOperation = 'overlay'; 
-            
             ctx.stroke();
             
-            // 再画一圈极细的内阴影，增加厚度感（可选）
+            // 内描边
             ctx.clip();
-            ctx.lineWidth = 4;
+            ctx.lineWidth = Math.max(4, canvas.width * 0.004);
             ctx.strokeStyle = "rgba(0,0,0,0.05)";
             ctx.stroke();
-            
             ctx.restore();
         }
 
@@ -359,10 +436,12 @@
             setTimeout(() => {
                  const link = document.createElement('a');
                  const timestamp = new Date().getTime();
-                 link.download = `GoogleArt-Wallpaper-${timestamp}.png`;
+                 const w = inputs.width.value;
+                 const h = inputs.height.value;
+                 link.download = `Wallpaper-${w}x${h}-${timestamp}.png`;
                  link.href = canvas.toDataURL('image/png', 1.0);
                  link.click();
-                 btn.innerText = "保存壁纸 (2K)";
+                 btn.innerText = "保存壁纸";
             }, 50);
         }
     </script>
