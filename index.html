@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ArtFrame-一键将照片转化为艺术馆级的高质感壁纸</title>
+    <title>极致力配套壁纸生成器 (1:1对齐版)</title>
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
@@ -89,7 +89,6 @@
         }
         canvas { height: 100%; width: auto; display: block; margin: 0 auto; }
         
-        /* 按钮组样式 */
         .btn-group {
             display: flex;
             gap: 10px;
@@ -102,11 +101,9 @@
         }
         button:active { transform: scale(0.98); }
         
-        /* 主按钮 (蓝色) */
         .btn-primary { background: #4285f4; color: white; }
         .btn-primary:hover { background: #3367d6; }
         
-        /* 次按钮 (深灰) */
         .btn-secondary { background: #3a3a3a; color: #eee; border: 1px solid #555; }
         .btn-secondary:hover { background: #444; border-color: #777; }
         
@@ -120,7 +117,7 @@
 </head>
 <body>
 
-    <h2>🎨 ArtFrame-一键将照片转化为艺术馆级的高质感壁纸</h2>
+    <h2>🎨 配套壁纸生成器 (1:1对齐版)</h2>
 
     <div class="main-layout">
         <div class="controls-wrapper">
@@ -172,8 +169,8 @@
                 </div>
 
                 <div class="btn-group">
-                    <button class="btn-primary" onclick="downloadImage('full')">保存完整壁纸</button>
-                    <button class="btn-secondary" onclick="downloadImage('bg')">只保存背景</button>
+                    <button class="btn-primary" onclick="downloadImage('full')">保存完整壁纸<br><span style="font-size:11px; opacity:0.8">(适合桌面)</span></button>
+                    <button class="btn-secondary" onclick="downloadImage('superBlur')">保存超模糊版<br><span style="font-size:11px; opacity:0.8">(适合锁屏)</span></button>
                 </div>
             </div>
         </div>
@@ -305,8 +302,7 @@
             ctx.closePath();
         }
 
-        // --- 核心修改：增加 onlyBackground 参数 ---
-        function render(onlyBackground = false) {
+        function render() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             
             // 1. 背景层
@@ -323,7 +319,7 @@
             ctx.drawImage(originalImage, xBg - bgBleed, yBg - bgBleed, wBg + bgBleed*2, hBg + bgBleed*2);
             ctx.restore();
 
-            // 氛围暗角 (背景的一部分)
+            // 氛围暗角
             const vignette = ctx.createRadialGradient(
                 canvas.width / 2, canvas.height / 2, canvas.width * 0.3, 
                 canvas.width / 2, canvas.height / 2, canvas.height * 0.9 
@@ -332,11 +328,6 @@
             vignette.addColorStop(1, 'rgba(0,0,0,0.15)');
             ctx.fillStyle = vignette;
             ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-            // --- 如果是“只下载背景”模式，到这里就结束了 ---
-            if (onlyBackground) {
-                return;
-            }
 
             // 2. 前景计算
             const padding = canvas.width * 0.08; 
@@ -382,46 +373,62 @@
             ctx.restore();
         }
 
-        // --- 核心修改：支持不同下载模式 ---
         function downloadImage(type) {
             if (!isImageLoaded) {
                 alert("请先选择图片"); return;
             }
             
-            const isBgOnly = (type === 'bg');
-            const btn = isBgOnly ? document.querySelector('.btn-secondary') : document.querySelector('.btn-primary');
+            const isSuperBlur = (type === 'superBlur');
+            const btn = isSuperBlur ? document.querySelector('.btn-secondary') : document.querySelector('.btn-primary');
             const originalText = btn.innerHTML;
-            
             btn.innerText = "处理中...";
             
-            // 使用 setTimeout 确保 UI 刷新
-            setTimeout(() => {
-                 // 1. 如果需要背景，强制重绘一次只有背景的图
-                 if (isBgOnly) {
-                     render(true);
-                 } else {
-                     // 确保是完整的（防止上次状态残留）
-                     render(false);
-                 }
+            // 确保当前画布上是完整的壁纸
+            render();
 
-                 // 2. 执行下载
+            const performDownload = (suffix) => {
                  const link = document.createElement('a');
                  const timestamp = new Date().getTime();
                  const w = inputs.width.value;
                  const h = inputs.height.value;
-                 // 文件名区分
-                 const suffix = isBgOnly ? 'Background' : 'Wallpaper';
-                 
                  link.download = `${suffix}-${w}x${h}-${timestamp}.png`;
                  link.href = canvas.toDataURL('image/png', 1.0);
                  link.click();
+            };
 
-                 // 3. 恢复预览 (如果是背景模式，下载完要画回完整的给用户看)
-                 if (isBgOnly) {
-                     render(false);
-                 }
+            setTimeout(() => {
+                if (isSuperBlur) {
+                    // --- 超级模糊版 (关键修复) ---
+                    const snapshot = new Image();
+                    snapshot.onload = function() {
+                        ctx.clearRect(0, 0, canvas.width, canvas.height);
+                        ctx.save();
+                        
+                        // 1. 设置稍微柔和一点的模糊值 (80px 就很强了)
+                        const blurAmount = 80;
+                        ctx.filter = `blur(${blurAmount}px) brightness(1.05)`; 
+                        
+                        // 2. 关键修改：计算最小出血量 (Bleed)
+                        // 之前是 10% (max width * 0.1) 导致放大了几百像素
+                        // 现在只取模糊值作为出血量，刚好盖住白边即可
+                        const bleed = blurAmount; 
 
-                 btn.innerHTML = originalText;
+                        // 3. 绘制时，只向外扩展极小的像素
+                        ctx.drawImage(snapshot, -bleed, -bleed, canvas.width + bleed*2, canvas.height + bleed*2);
+                        ctx.restore();
+                        
+                        performDownload('LockScreen-Blur');
+                        
+                        render(); // 恢复预览
+                        btn.innerHTML = originalText;
+                    };
+                    snapshot.src = canvas.toDataURL();
+                    
+                } else {
+                    // --- 完整版 ---
+                    performDownload('Desktop-Full');
+                    btn.innerHTML = originalText;
+                }
             }, 50);
         }
     </script>
